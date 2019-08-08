@@ -1,0 +1,92 @@
+#  deprecation: warn
+jenkins:
+  systemMessage: "Nginx builder.\n\n"
+
+  numExecutors: 1
+  mode: NORMAL
+  scmCheckoutRetryCount: 3
+  labelString: "master-label"  
+
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+       - id: ${JENKINS_USER:-demoAdmin}
+         password: ${JENKINS_PASS:-passw0rd}
+
+  authorizationStrategy:
+    globalMatrix:
+      grantedPermissions:
+        - "Overall/Read:anonymous"
+        - "Job/Read:anonymous"
+        - "View/Read:anonymous"
+        - "Overall/Administer:authenticated"
+
+  crumbIssuer: "standard"
+
+  remotingSecurity:
+    enabled: true    
+
+# credentials:
+#   system:
+#     domainCredentials:
+#       - credentials:
+#           - usernamePassword:
+#               scope:    SYSTEM
+#               id:       github-user
+#               username: ${github_user}
+#               password: ${github_pass}
+#           - basicSSHUserPrivateKey:
+#               scope: SYSTEM
+#               id: agent-private-key
+#               username: agentuser
+#               passphrase:  ""
+#               description: "ssh private key used to connect ssh slaves"
+#               privateKeySource:
+#                 directEntry: # The key 'agent_private_key' resolved from a docker secret defined in docker-compose.yml
+#                   privateKey: ${agent_private_key}
+
+tool:
+  git:
+    installations:
+      - name: Default
+        home: "git"
+
+jobs:
+  - script: >
+      pipelineJob('Nginx_Builder') {
+        // curl http://localhost:8080/job/Nginx_Builder/build?token=mytoken
+        authenticationToken('mytoken')
+        definition {
+          cpsScm {
+            scm {
+              git {
+                branch('master')
+                remote {
+                  url('REMOTE_REPO_URL')
+                  branch('*/master')
+                }
+              }
+            }
+            scriptPath('Jenkinsfile')
+            lightweight(false)
+          }
+          triggers {
+             scm('* * * * *')
+          }
+        }
+        properties{
+          buildDiscarder {
+            strategy {
+              logRotator {
+                daysToKeepStr('')
+                numToKeepStr('10')
+                artifactDaysToKeepStr('')
+                artifactNumToKeepStr('')
+              }
+            }
+          }
+        }
+      }
+#  - file: ${PIPELINE_JOB}
+#  - url: https://raw.githubusercontent.com/Praqma/job-dsl-collection/master/configuration-as-code-dsl/pipeline.dsl #casc
